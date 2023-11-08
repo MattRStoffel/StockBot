@@ -3,6 +3,11 @@ import torch
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.datasets import AG_NEWS as data
+from torchtext.data.functional import to_map_style_dataset
+
+from torch.utils.data.dataset import random_split
+from torch.utils.data import DataLoader
+
 
 tokenizer = get_tokenizer("basic_english")
 
@@ -30,3 +35,28 @@ def collate_batch(batch):
     text_list = torch.cat(text_list)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return label_list.to(device), text_list.to(device), offsets.to(device)
+
+# Split data for training and testing
+train_dataset = to_map_style_dataset(train_iter)
+test_dataset = to_map_style_dataset(test_iter)
+num_train = int(len(train_dataset) * 0.95)
+
+BATCH_SIZE = 64  # batch size for training
+
+split_train_, split_valid_ = random_split(
+    train_dataset, [num_train, len(train_dataset) - num_train]
+)
+train_dataloader = DataLoader(
+    split_train_, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+)
+valid_dataloader = DataLoader(
+    split_valid_, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+)
+test_dataloader = DataLoader(
+    test_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
+)
+
+
+number_of_classes = len(set([label for (label, text) in train_iter]))
+vocab_size = len(vocab)
+embedding_size = 64
