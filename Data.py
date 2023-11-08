@@ -1,29 +1,22 @@
-
-#Access to the raw dataset iterators
 import torch
+
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torchtext.datasets import AG_NEWS as data
-from torch.utils.data import DataLoader
 
-#Prepare data processing pipelines
 tokenizer = get_tokenizer("basic_english")
 
 def yield_tokens(data_iter):
     for _, text in data_iter:
         yield tokenizer(text)
 
-train_iter = data(split="train")
+train_iter, test_iter = data()
 
 vocab = build_vocab_from_iterator(yield_tokens(train_iter), specials=["<unk>"])
 vocab.set_default_index(vocab["<unk>"])
 
 text_pipeline = lambda x: vocab(tokenizer(x))
 label_pipeline = lambda x: int(x) - 1
-
-#Generate data batch and iterator
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def collate_batch(batch):
     label_list, text_list, offsets = [], [], [0]
@@ -35,9 +28,5 @@ def collate_batch(batch):
     label_list = torch.tensor(label_list, dtype=torch.int64)
     offsets = torch.tensor(offsets[:-1]).cumsum(dim=0)
     text_list = torch.cat(text_list)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return label_list.to(device), text_list.to(device), offsets.to(device)
-
-
-dataloader = DataLoader(
-    train_iter, batch_size=8, shuffle=False, collate_fn=collate_batch
-)

@@ -1,9 +1,8 @@
 import torch
 
-from Data import vocab, collate_batch, text_pipeline
+from Data import vocab, collate_batch, train_iter, test_iter
 from TextClassificationModel import TextClassificationModel
 
-from torchtext.datasets import AG_NEWS
 from torch.utils.data import DataLoader
 
 from torch.utils.data.dataset import random_split
@@ -26,6 +25,8 @@ def train(dataloader):
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
         optimizer.step()
+        
+        #Log progress
         total_acc += (predicted_label.argmax(1) == label).sum().item()
         total_count += label.size(0)
         if idx % log_interval == 0 and idx > 0:
@@ -44,16 +45,15 @@ def evaluate(dataloader):
     total_acc, total_count = 0, 0
 
     with torch.no_grad():
-        for idx, (label, text, offsets) in enumerate(dataloader):
+        for label, text, offsets in dataloader:
             predicted_label = model(text, offsets)
-            loss = criterion(predicted_label, label)
+            # loss = criterion(predicted_label, label)
             total_acc += (predicted_label.argmax(1) == label).sum().item()
             total_count += label.size(0)
     return total_acc / total_count
 
 
 #Initiate an instance
-train_iter = AG_NEWS(split="train")
 num_class = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
 emsize = 64
@@ -61,7 +61,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
 
 # Hyperparameters
-EPOCHS = 10  # epoch
+EPOCHS = 1  # epoch
 LR = 5  # learning rate
 BATCH_SIZE = 64  # batch size for training
 
@@ -70,14 +70,14 @@ criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 total_accu = None
-train_iter, test_iter = AG_NEWS()
+
 train_dataset = to_map_style_dataset(train_iter)
 test_dataset = to_map_style_dataset(test_iter)
 num_train = int(len(train_dataset) * 0.95)
+
 split_train_, split_valid_ = random_split(
     train_dataset, [num_train, len(train_dataset) - num_train]
 )
-
 train_dataloader = DataLoader(
     split_train_, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_batch
 )
@@ -111,4 +111,4 @@ print("Checking the results of test dataset.")
 accu_test = evaluate(test_dataloader)
 print("test accuracy {:8.3f}".format(accu_test))
 
-torch.save(model, "model.h2")
+torch.save(model, "model.h1")
