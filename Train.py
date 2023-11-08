@@ -13,16 +13,20 @@ import time
 #Define functions to train the model and evaluate results.
 
 def train(dataloader):
-    model.train()
+    #for logging purposes
     total_acc, total_count = 0, 0
     log_interval = 500
     start_time = time.time()
 
+    model.train() #Set model to training mode
+
     for idx, (label, text, offsets) in enumerate(dataloader):
         optimizer.zero_grad()
         predicted_label = model(text, offsets)
+
         loss = criterion(predicted_label, label)
         loss.backward()
+        
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
         optimizer.step()
         
@@ -54,23 +58,29 @@ def evaluate(dataloader):
 
 
 #Initiate an instance
-num_class = len(set([label for (label, text) in train_iter]))
+number_of_classes = len(set([label for (label, text) in train_iter]))
 vocab_size = len(vocab)
-emsize = 64
+embedding_size = 64
+total_accu = None
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = TextClassificationModel(vocab_size, emsize, num_class).to(device)
+model = TextClassificationModel(vocab_size, embedding_size, number_of_classes).to(device)
 
 # Hyperparameters
-EPOCHS = 1  # epoch
+EPOCHS = 10  # epoch
 LR = 5  # learning rate
 BATCH_SIZE = 64  # batch size for training
 
-#Split the dataset 
-criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=LR)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
-total_accu = None
+# Defining loss function 
+# (used to measure the difference between the predicted output and the target)
+criterion = torch.nn.CrossEntropyLoss() 
 
+# Stochastic Gradient Descent optimizer 
+# used in the scheduler for finding local minimums
+optimizer = torch.optim.SGD(model.parameters(), lr=LR)
+# reduces the efect of the optimizer (lowering learning rate) at specified times (gamma)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
+
+# Split data for training and testing
 train_dataset = to_map_style_dataset(train_iter)
 test_dataset = to_map_style_dataset(test_iter)
 num_train = int(len(train_dataset) * 0.95)
@@ -90,13 +100,17 @@ test_dataloader = DataLoader(
 
 # run the model
 for epoch in range(1, EPOCHS + 1):
+    #for loging progress
     epoch_start_time = time.time()
+
     train(train_dataloader)
     accu_val = evaluate(valid_dataloader)
     if total_accu is not None and total_accu > accu_val:
         scheduler.step()
     else:
         total_accu = accu_val
+    
+    #Log progress
     print("-" * 59)
     print(
         "| end of epoch {:3d} | time: {:5.2f}s | "
