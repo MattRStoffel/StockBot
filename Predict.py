@@ -12,12 +12,12 @@ def predict(text, text_pipeline):
         return output.argmax(1).item() + 1
 
 #Test on a random news
-ag_news_label = {1: "World", 2: "Sports", 3: "Business", 4: "Sci/Tec"}
+news_label = {1: "berish", 2: "bullish"}
 
 ex_text_str = """
-war war war
+I am bullish
 """
 
 model = model.to("cpu")
 
-print("This is a %s news" % ag_news_label[predict(ex_text_str, text_pipeline)])
+print("This is a %s news" % news_label[predict(ex_text_str, text_pipeline)])

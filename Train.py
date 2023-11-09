@@ -3,7 +3,6 @@ import time
 
 import Data
 
-
 def train(dataloader):
     #for logging purposes
     total_acc, total_count = 0, 0
@@ -55,7 +54,7 @@ model = Data.model
 train_dataloader, valid_dataloader, test_dataloader = Data.data_loaders
 
 # Hyperparameters
-EPOCHS = 10  # epoch
+EPOCHS = 14 #epoch
 LR = 5  # learning rate
 
 # Defining loss function 
