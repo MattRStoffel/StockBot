@@ -1,7 +1,8 @@
 import torch
 import time
 
-from TextClassificationModel import TextClassificationModel
+import Data
+
 
 def train(dataloader):
     #for logging purposes
@@ -50,10 +51,8 @@ def evaluate(dataloader):
 
 #Initiate an instance
 total_accu = None
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-from Data import vocab_size, embedding_size, number_of_classes
-model = TextClassificationModel(vocab_size, embedding_size, number_of_classes).to(device)
+model = Data.model
+train_dataloader, valid_dataloader, test_dataloader = Data.data_loaders
 
 # Hyperparameters
 EPOCHS = 10  # epoch
@@ -62,14 +61,12 @@ LR = 5  # learning rate
 # Defining loss function 
 # (used to measure the difference between the predicted output and the target)
 criterion = torch.nn.CrossEntropyLoss() 
-
 # Stochastic Gradient Descent optimizer 
 # used in the scheduler for finding local minimums
 optimizer = torch.optim.SGD(model.parameters(), lr=LR)
 # reduces the efect of the optimizer (lowering learning rate) at specified times (gamma)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.1)
 
-from Data import train_dataloader, valid_dataloader, test_dataloader
 # run the model
 for epoch in range(1, EPOCHS + 1):
     #for loging progress

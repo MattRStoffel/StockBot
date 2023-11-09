@@ -17,7 +17,7 @@ def predict(text, text_pipeline):
 
 
 ex_text_str = """
-
+war war war
 """
 
 model = model.to("cpu")
