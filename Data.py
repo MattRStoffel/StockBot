@@ -12,6 +12,8 @@ from TextClassificationModel import TextClassificationModel
 
 tokenizer = get_tokenizer("basic_english")
 
+
+
 def yield_tokens(data_iter):
     for _, text in data_iter:
         yield tokenizer(text)
