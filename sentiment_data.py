@@ -1,11 +1,9 @@
-import torch
-import re
-import collections
 from torch.utils.data import Dataset
 
-class CustomDataset(Dataset):
-    def __init__(self, data_path, transform=None):
-        self.data = self._load_data(data_path)
+class sentiment_data(Dataset):
+    def __init__(self, transform=None):
+        self.data = self._load_data('./Stocks and News/sentiment.dat' )
+        self.labels = {1: "berish", 2: "bullish"}
         self.transform = transform
 
     def __len__(self):
@@ -24,13 +22,5 @@ class CustomDataset(Dataset):
         with open(data_path, 'r', encoding='utf-8') as file:
             lines = file.readlines()[1:]  # Skip header line
             labels = [int(line.split('|')[1]) + 1 for line in lines ] #if pattern.match(line)
-            data = []
-            words = ''
-            for line in lines:
-                words += line.split('|')[2].join(line.split('|')[3:])
-            # if pattern.match(line):
-                data.append(words)
-                words = ''
-
-            x = list(zip(labels, data))
-        return x
+            data = [line.split('|')[2].join(line.split('|')[3:]) for line in lines]
+            return list(zip(labels, data))
