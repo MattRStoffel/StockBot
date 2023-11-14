@@ -24,12 +24,7 @@ def make_model(EPOCHS, LR, embedding_size):
         if E > 6:
             save(model, "model." + str(E) + "_" + str(LR) + "_" + str(embedding_size))
 
-def predict(model, text):
-    with no_grad(): # disables gradient calculation
-        text = tensor(processed_text.text_pipeline(text))
-        output = model(text, tensor([0]))
-        return (output.argmax(1).item() + 1, output.tolist())
-    
+
 def thredded_train():
     from concurrent.futures import ThreadPoolExecutor
 
@@ -51,6 +46,11 @@ def thredded_train():
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         executor.map(make_model_wrapper, parameter_combinations)
 
+def predict(model, text):
+    with no_grad(): # disables gradient calculation
+        text = tensor(processed_text.text_pipeline(text))
+        output = model(text, tensor([0]))
+        return (output.argmax(1).item() + 1, output.tolist())
 
 def visual_test():
     bullish_tweets_hedge = [
@@ -110,6 +110,7 @@ def visual_test():
 
     model = load("1model.13_4_16")
 
+    predictions = []
     labels = SentimentDataSource().labels
     for i, s in enumerate(test_tests):
         print("-" * 80)
@@ -117,7 +118,18 @@ def visual_test():
         print("-" * 80)
         for test in s:
             p = predict(model, test)
-            print("| {:<40} | {:<20} | {}".format(test[:40],labels[p[0]],p[1]))
+            predictions.append((i, p[1][0]))
+            print("| {:<40} | {:<20} | {}".format(test[:40],labels[p[0]],p[1][0]))
+
+    import matplotlib.pyplot as plt
+    colors = ['b', 'g', 'r', 'c']  # You can customize the colors as needed
+    # plt.figure(figsize=(10, 6))
+    for i in range(len(predictions)):
+        plt.scatter(predictions[i][1][0], predictions[i][1][1], color=colors[predictions[i][0]])
+    plt.xlabel('Bullish')
+    plt.ylabel('Bearish')
+    plt.show()
+
 
 def batch_test():
     # Define the parameter ranges
@@ -141,3 +153,4 @@ def batch_test():
         
 
 visual_test()
+
