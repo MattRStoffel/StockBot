@@ -22,5 +22,5 @@ class SentimentDataSource(Dataset):
         with open(data_path, 'r', encoding='utf-8') as file:
             lines = file.readlines()[1:]  # Skip header line
             labels = [int(line.split('|')[1]) + 1 for line in lines ] #if pattern.match(line)
-            data = [line.split('|')[2].join(line.split('|')[3:]) for line in lines]
+            data = [line.split('|')[2].join(line.split('|')[4:]) for line in lines]
             return list(zip(labels, data))

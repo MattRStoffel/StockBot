@@ -1,5 +1,5 @@
 # import torch
-from torch import tensor, load, no_grad, save
+import torch
 from TextDataLoader import TextDataLoader
 from SentimentDataSource import SentimentDataSource 
 from ModelTrainingManager import ModelTrainingManager
@@ -10,147 +10,87 @@ EPOCHS = 9
 LR = 5
 BATCH_SIZE = 64
 
-processed_text = TextPreprocessor(SentimentDataSource())
-data = TextDataLoader(SentimentDataSource(), processed_text, BATCH_SIZE)
+raw_data = SentimentDataSource()
+processed_text = TextPreprocessor(raw_data)
+data = TextDataLoader(raw_data, processed_text, BATCH_SIZE)
 
-def make_model(EPOCHS, LR, embedding_size):
+def make_model(epochs, LR, embedding_size):
     model = TextClassificationModel(len(processed_text.vocab), embedding_size, data.number_of_classes).to("cpu")
-
     trainer = ModelTrainingManager(model, LR, len(data.train))
+    trainer.train_and_evaluate(epochs, data.train, data.valid)
+    return trainer.model
 
-    for E in range(1,EPOCHS):
-        trainer.train_and_evaluate(1, data.train, data.valid)
-        model = trainer.model
-        if E > 6:
-            save(model, "model." + str(E) + "_" + str(LR) + "_" + str(embedding_size))
-
-
-def thredded_train():
+def thredded_train(max_epochs : int = 20, learning_rates : [float]= [3,4], embedding_sizes : [int] = [16, 32]):
     from concurrent.futures import ThreadPoolExecutor
-
+        
     def make_model_wrapper(args):
         EP, L, em = args
-        make_model(EP, L, em)
+        model = TextClassificationModel(len(processed_text.vocab), em, data.number_of_classes).to("cpu")
+        trainer = ModelTrainingManager(model, L, len(data.train))
+        for e in range(0, EP + 1):
+            trainer.train_and_evaluate(1, data.train, data.valid)
+            torch.save(model, "./models/model" + str(e+1) + '_' + str(L) + '_' + str(em))
 
-    # Define the parameter ranges
-    L_range = [3,4]
-    em_range = [16, 32]
+    parameter_combinations = [(max_epochs, L, em) for L in learning_rates for em in embedding_sizes]
 
-    # Generate all combinations of parameters
-    parameter_combinations = [(20, L, em) for L in L_range for em in em_range]
-
-    # Specify the number of threads you want to use
-    num_threads = 12  # Adjust as needed
-
-    # Use ThreadPoolExecutor to parallelize the loop
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         executor.map(make_model_wrapper, parameter_combinations)
 
-def predict(model, text):
-    with no_grad(): # disables gradient calculation
-        text = tensor(processed_text.text_pipeline(text))
-        output = model(text, tensor([0]))
-        return (output.argmax(1).item() + 1, output.tolist())
+def evaluate(model : TextClassificationModel):
+    trainer : ModelTrainingManager = ModelTrainingManager(model, model.initial_LR)
+    print("E : {:<} | LR : {:<} | Embedding_Size {} | {:4f}".format(model.trained_epochs, model.initial_LR, model.embedding_dim, trainer.evaluate_accuracy(data.test)))
 
-def visual_test():
-    bullish_tweets_hedge = [
-        "Just heard some exciting news about the market! Looks like hedge funds are going all in. #BullishMarket 🚀",
-        "Feeling optimistic about the future! Hedge funds seem confident in the market's upward trend. #BullishVibes 💹",
-        "Bulls are running wild today! Hedge funds are placing big bets on the market's success. #BullishRun 🐂",
-        "Market sentiment is on fire! Hedge funds are showing strong support for the bullish trend. #BullishOutlook 🔥",
-        "Hedge funds are doubling down on their positions. Looks like a bullish ride ahead! #MarketOptimism 📈",
-        "Seeing a lot of positive signals from hedge funds lately. Bull market enthusiasts, rejoice! #BullishSignals 📊",
-        "Exciting times in the market! Hedge funds are expressing confidence in the ongoing bullish momentum. #BullishConfidence 🌐",
-        "Bullish sentiment is spreading like wildfire, especially among hedge funds. Market outlook is looking bright! #BullishMarket 💡",
-        "Hedge funds are placing their bets on a strong market rally. Looks like a bullish wave is coming! #BullishWave 🌊",
-        "Market bulls are in control! Hedge funds are contributing to the positive atmosphere. #BullishMarketLeaders 🐃"
-    ]
+def multi_evaluate(directory = './models'):
+    import os
+    files = [file for file in os.listdir(directory) if os.path.isfile(os.path.join(directory, file))]
 
-    bullish_tweets_banks = [
-        "Just heard some exciting news about the market! Looks like banks are going all in. #BullishMarket 🚀",
-        "Feeling optimistic about the future! Banks seem confident in the market's upward trend. #BullishVibes 💹",
-        "Bulls are running wild today! Banks are placing big bets on the market's success. #BullishRun 🐂",
-        "Market sentiment is on fire! Banks are showing strong support for the bullish trend. #BullishOutlook 🔥",
-        "Banks are doubling down on their positions. Looks like a bullish ride ahead! #MarketOptimism 📈",
-        "Seeing a lot of positive signals from banks lately. Bull market enthusiasts, rejoice! #BullishSignals 📊",
-        "Exciting times in the market! Banks are expressing confidence in the ongoing bullish momentum. #BullishConfidence 🌐",
-        "Bullish sentiment is spreading like wildfire, especially among banks. Market outlook is looking bright! #BullishMarket 💡",
-        "Banks are placing their bets on a strong market rally. Looks like a bullish wave is coming! #BullishWave 🌊",
-        "Market bulls are in control! Banks are contributing to the positive atmosphere. #BullishMarketLeaders 🐃"
-    ]
+    models = []
+    for file in files:
+        model = torch.load(directory + '/' + file)
+        trainer = ModelTrainingManager(model, LR, len(data.train)) 
+        accuracy = trainer.evaluate_accuracy(data.test)
+        models.append((accuracy, file))
 
-    bearish_tweets_hedge = [
-        "Concerned about the market lately. Hearing that hedge funds are pulling back. #BearishMarket 📉",
-        "Seeing signs of caution in the market. Hedge funds seem to be adopting a bearish stance. #BearishOutlook 🚨",
-        "Market bears gaining momentum as hedge funds reduce exposure. #BearishTrend 🐻",
-        "Hedge funds appear to be hedging their bets. Market sentiment turning bearish. #MarketCaution 📉",
-        "Noticing a shift in market dynamics. Hedge funds are taking a more conservative approach. #BearishSignals 🚩",
-        "Word on the street is hedge funds are getting skeptical. Brace yourselves for a bearish phase. #MarketConcerns 📉",
-        "Market pessimism creeping in as hedge funds express doubts. #BearishSentiment 🐻",
-        "Hedge funds seem to be stepping back, signaling a potential downturn. #BearishMarketAlert 🚨",
-        "Bearish clouds gathering as hedge funds adjust their positions. #MarketWorries 🌧️",
-        "Hedge funds taking defensive measures. Market outlook appears bearish. #BearishTrends 📉"
-    ]
+    models = sorted(models)
+    for model in models:
+        print("{:13} | {:3f}".format(model[1], model[0]))
 
-    bearish_tweets_banks = [
-        "Concerned about the market lately. Hearing that banks are pulling back. #BearishMarket 📉",
-        "Seeing signs of caution in the market. Banks seem to be adopting a bearish stance. #BearishOutlook 🚨",
-        "Market bears gaining momentum as banks reduce exposure. #BearishTrend 🐻",
-        "Banks appear to be hedging their bets. Market sentiment turning bearish. #MarketCaution 📉",
-        "Noticing a shift in market dynamics. Banks are taking a more conservative approach. #BearishSignals 🚩",
-        "Word on the street is banks are getting skeptical. Brace yourselves for a bearish phase. #MarketConcerns 📉",
-        "Market pessimism creeping in as banks express doubts. #BearishSentiment 🐻",
-        "Banks seem to be stepping back, signaling a potential downturn. #BearishMarketAlert 🚨",
-        "Bearish clouds gathering as banks adjust their positions. #MarketWorries 🌧️",
-        "Banks taking defensive measures. Market outlook appears bearish. #BearishTrends 📉"
-    ]
-
-    test_tests = [bullish_tweets_hedge, bullish_tweets_banks, bearish_tweets_hedge, bearish_tweets_banks]
-    test_tests_names = ["bullish_tweets_hedge", "bullish_tweets_banks", "bearish_tweets_hedge", "bearish_tweets_banks"]
-
-    model = load("1model.13_4_16")
-
-    predictions = []
-    labels = SentimentDataSource().labels
-    for i, s in enumerate(test_tests):
-        print("-" * 80)
-        print(test_tests_names[i])
-        print("-" * 80)
-        for test in s:
-            p = predict(model, test)
-            predictions.append((i, p[1][0]))
-            print("| {:<40} | {:<20} | {}".format(test[:40],labels[p[0]],p[1][0]))
-
+def visualize(model, number_of_points = 0, r = 'r', g = 'g', y = 'y'):    
     import matplotlib.pyplot as plt
-    colors = ['b', 'g', 'r', 'c']  # You can customize the colors as needed
-    # plt.figure(figsize=(10, 6))
-    for i in range(len(predictions)):
-        plt.scatter(predictions[i][1][0], predictions[i][1][1], color=colors[predictions[i][0]])
-    plt.xlabel('Bullish')
-    plt.ylabel('Bearish')
+    import random
+
+    test_tests = raw_data.data
+    random.shuffle(test_tests)
+
+    plt.scatter(0,0,color='g')
+    plt.scatter(0,0,color='r')
+    plt.scatter(0,0,color='y')
+    plt.scatter(0,0,color='w')
+    plt.legend(["Bullish", "Bearish", "Wrong Guess"])
+
+    for label, text in test_tests[:number_of_points if number_of_points > 0 else len(test_tests)]:
+        predicted_label, tensor_values = model.predict(processed_text, text)
+        tensor_values = tensor_values[0]
+        largest_value = tensor_values[0] if tensor_values[0] > tensor_values[1] else tensor_values[1]
+        tensor_sum = tensor_values[0] + tensor_values[1]
+        accuracy = (r if label == 1 else g) if label != predicted_label+1 else y
+        try:
+            plt.scatter(tensor_sum, largest_value, color=accuracy)
+        except:
+            pass
+
+    plt.xlabel('Tensor sum')
+    plt.ylabel('Largest tesnsor value')
     plt.show()
 
 
-def batch_test():
-    # Define the parameter ranges
-    E_range = range(7, 20)
-    L_range = [3,4]
-    em_range = [16, 32]
+# thredded_train()
+# multi_evaluate()
 
-    # Generate all combinations of parameters
-    parameter_combinations = [(E, L, em)for E in E_range for L in L_range for em in em_range]
-    models = []
-    for (E, L, em) in parameter_combinations:
-        name = "model." + str(E) + "_" + str(L) + "_" + str(em)
-        model = load(name)
-        trainer = ModelTrainingManager(model, LR, len(data.train)) 
-        accuracy = trainer.evaluate_accuracy(data.test)
-        models.append((accuracy, name))
-
-    models = sorted(models)
-    for model in models[:4]:
-        print("{:13} | {:3f}".format(model[1], model[0]))
-        
-
-visual_test()
-
+model : TextClassificationModel = torch.load("./models/model8_4_16")
+text = """
+Yay
+"""
+prediction = model.predict(processed_text, text)
+print("{:<30} | {:<}".format(text[1:-1][:30], raw_data.labels[prediction[0]]))
+# visualize(model, 500)
