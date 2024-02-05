@@ -15,7 +15,7 @@ class ModelTrainingManager:
 
     def train_one_epoch(self, epoch, dataloader):
         self.model.train() #Set model to training mode
-
+        
         for idx, (label, text, offsets) in enumerate(dataloader):
             self.optimizer.zero_grad()
             predicted_label = self.model(text, offsets)

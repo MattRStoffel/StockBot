@@ -32,3 +32,4 @@ class TrainingLogger:
             )
         )
         self.output("-" * 59)
+        

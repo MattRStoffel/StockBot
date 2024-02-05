@@ -50,7 +50,7 @@ def thredded_train(processed_text, data, max_epochs : int = 15, learning_rates :
             trainer = ModelTrainingManager(model, L, len(data.train))
             for e in range(0, EP + 1):
                 trainer.train_and_evaluate(1, data.train, data.valid)
-                torch.save(model, "./models/m" + str(i) + '.' + str(e+1) + '.' + str(L) + '.' + str(em))
+                torch.save(model, "./models/rm" + str(i) + '.' + str(e+1) + '.' + str(L) + '.' + str(em))
 
     parameter_combinations = [(max_epochs, L, em) for L in learning_rates for em in embedding_sizes]
 
@@ -118,18 +118,34 @@ def visualize(model, processed_text, raw_data, number_of_points = 0, r = 'r', g 
 
 
 
+thredded_train(processed_reddit, reddit_data)
+multi_evaluate(reddit_data)
+
 # thredded_train(processed_sentiment, sentiment_data)
 # multi_evaluate(sentiment_data)
 
-models = [
-    torch.load("./models/m2.6.4.64"),
-    torch.load("./models/m1.6.5.32"),
-    torch.load("./models/m2.7.5.32"),
-    torch.load("./models/m2.4.5.32"),
-]
-for model in models:
-    text = """
-The stock might do good but im not sure. it might turn out bad
-    """
-    prediction = model.predict(processed_sentiment, text)
-    print("{:<30} | {:<}".format(text[1:-1][:30], raw_data.labels[prediction[0]]))
+# models = [
+#     torch.load("./models/m2.6.4.64"),
+#     torch.load("./models/m1.6.5.32"),
+#     torch.load("./models/m2.7.5.32"),
+#     torch.load("./models/m2.4.5.32"),
+# ]
+# x = []
+# with open('Stocks and News/RedditNews.csv', 'r', encoding='utf-8') as file:
+#     lines = file.readlines()[1:]  # Skip header line
+#     news_data = [''.join(line.split(',')[1:]).removeprefix('"') for line in lines]
+#     news_dates = [''.join(line.split(',')[0]) for line in lines]
+
+# for i, text in enumerate(news_data):
+#     for model in models:
+#         if len(text) < 10:
+#             continue
+#         prediction = model.predict(processed_sentiment, text)
+#         news_data[i] = str(prediction[0]) + " " + news_data[i]
+#         if not news_data[i].endswith('"\n'):
+#             news_data[i] = news_data[i].removesuffix('\n') + '"\n'
+        
+# with open('Stocks and News/RedditNews.csv', 'w', encoding='utf-8') as file:
+#     file.write('Date,News\n')
+#     for date, data in zip(news_dates, news_data):
+#         file.write(date + ', "' + data)
